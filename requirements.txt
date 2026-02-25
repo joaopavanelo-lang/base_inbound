@@ -1,5 +1,7 @@
+playwright
 pandas
-numpy
 gspread
-requests
 google-auth
+google-auth-oauthlib
+selenium
+oauth2client
