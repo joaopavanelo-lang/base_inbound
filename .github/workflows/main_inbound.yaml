@@ -1,7 +1,7 @@
 name: main 
 
 on:
-  workflow_dispatch:
+  workflow_dispatch:  # Permite apenas a execução manual pela aba Actions
 
 jobs:
   run-script:
@@ -31,4 +31,13 @@ jobs:
           playwright install-deps
 
       - name: Executar o script
+        env:
+          TZ: "America/Sao_Paulo" # Garante o horário de Brasília
         run: python main.py
+
+      - name: Salvar Screenshots de Debug
+        uses: actions/upload-artifact@v4
+        if: always() # Garante que o GitHub salve as fotos mesmo se o Python "crashar"
+        with:
+          name: screenshots-shopee
+          path: /tmp/debug/
