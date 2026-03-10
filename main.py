@@ -38,15 +38,15 @@ def update_packing_google_sheets(csv_file_path):
         scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
         creds = ServiceAccountCredentials.from_json_keyfile_name("hxh.json", scope)
         client = gspread.authorize(creds)
-        sheet1 = client.open_by_url(
-            "https://docs.google.com/spreadsheets/d/1LZ8WUrgN36Hk39f7qDrsRwvvIy1tRXLVbl3-wSQn-Pc/edit?gid=734921183#gid=734921183"
-        )
+        
+        # Abrindo a planilha pelo ID limpo de forma mais segura
+        sheet1 = client.open_by_key("1LZ8WUrgN36Hk39f7qDrsRwvvIy1tRXLVbl3-wSQn-Pc")
         worksheet1 = sheet1.worksheet("Base Inbound")
         
-        # Lê o CSV garantindo que a Coluna D (índice 3) seja lida como texto (cópia exata)
+        # Lê o CSV garantindo que a Coluna D (índice 3) seja lida como texto (cópia exata da origem)
         df = pd.read_csv(csv_file_path, dtype={3: str}).fillna("")
         
-        # Formata a Coluna E (índice 4) para dd/mm/yyyy hh:mm:ss, se a coluna existir
+        # Formata a Coluna E (índice 4) estritamente para dd/mm/yyyy hh:mm:ss, se a coluna existir
         if df.shape[1] > 4:
             df.iloc[:, 4] = pd.to_datetime(df.iloc[:, 4], errors='coerce').dt.strftime('%d/%m/%Y %H:%M:%S').fillna("")
 
@@ -54,7 +54,7 @@ def update_packing_google_sheets(csv_file_path):
         worksheet1.update([df.columns.values.tolist()] + df.values.tolist())
         print(f"Arquivo enviado com sucesso para a aba 'Base Inbound'.")
     except Exception as e:
-        print(f"Erro durante a atualização do Sheets: {e}")
+        print(f"Erro durante o processo de atualização da planilha: {e}")
 
 # ==============================
 # Fluxo principal Playwright
@@ -62,7 +62,7 @@ def update_packing_google_sheets(csv_file_path):
 async def main():        
     os.makedirs(DOWNLOAD_DIR, exist_ok=True)
     async with async_playwright() as p:
-        # HEADLESS=TRUE para rodar no GitHub Actions
+        # headless=True é obrigatório para rodar em servidores como o do GitHub Actions
         browser = await p.chromium.launch(
             headless=True, 
             args=["--no-sandbox", "--disable-dev-shm-usage", "--window-size=1920,1080"]
@@ -104,7 +104,7 @@ async def main():
             await download.save_as(download_path)
             new_file_path = rename_downloaded_file(DOWNLOAD_DIR, download_path)
 
-            # ####################################################################
+            #####################################################################
 
             # Atualizar Google Sheets
             if new_file_path:
