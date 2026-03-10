@@ -2,31 +2,43 @@ name: main
 
 on:
   workflow_dispatch:
+
 jobs:
   run-script:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout do código
         uses: actions/checkout@v4
+
       - name: Instalar Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
+
       - name: Instalar dependências
         run: |
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      # Cria o arquivo físico que o gspread/google-auth vai ler
       - name: Criar arquivo de credenciais GCP
         run: echo '${{ secrets.GCP_SA_KEY_JSON }}' > gcp_key.json
+
+      # Cache para não baixar o browser toda vez (ganha ~2min)
       - name: Cache Playwright Browsers
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ hashFiles('requirements.txt') }}
+
+      # Instala o navegador e as bibliotecas de sistema do Linux
       - name: Instalar Playwright Chromium
         run: playwright install chromium --with-deps
+
       - name: Executar o script
         env:
+          # Variáveis para o seu script Python
           GCP_SA_KEY_PATH: gcp_key.json 
           SEATALK_WEBHOOK_URL: ${{ secrets.SEATALK_WEBHOOK_URL }}
         run: python main.py
