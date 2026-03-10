@@ -26,7 +26,6 @@ def rename_downloaded_file(download_dir, download_path):
         print(f"Erro ao renomear o arquivo: {e}")
         return None
 
-
 # ==============================
 # Funções de atualização Google Sheets
 # ==============================
@@ -35,6 +34,7 @@ def update_packing_google_sheets(csv_file_path):
         if not os.path.exists(csv_file_path):
             print(f"Arquivo {csv_file_path} não encontrado.")
             return
+            
         scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
         creds = ServiceAccountCredentials.from_json_keyfile_name("hxh.json", scope)
         client = gspread.authorize(creds)
@@ -42,12 +42,19 @@ def update_packing_google_sheets(csv_file_path):
             "https://docs.google.com/spreadsheets/d/1LZ8WUrgN36Hk39f7qDrsRwvvIy1tRXLVbl3-wSQn-Pc/edit?gid=734921183#gid=734921183"
         )
         worksheet1 = sheet1.worksheet("Base Inbound")
-        df = pd.read_csv(csv_file_path).fillna("")
+        
+        # Lê o CSV garantindo que a Coluna D (índice 3) seja lida como texto (cópia exata)
+        df = pd.read_csv(csv_file_path, dtype={3: str}).fillna("")
+        
+        # Formata a Coluna E (índice 4) para dd/mm/yyyy hh:mm:ss, se a coluna existir
+        if df.shape[1] > 4:
+            df.iloc[:, 4] = pd.to_datetime(df.iloc[:, 4], errors='coerce').dt.strftime('%d/%m/%Y %H:%M:%S').fillna("")
+
         worksheet1.clear()
         worksheet1.update([df.columns.values.tolist()] + df.values.tolist())
         print(f"Arquivo enviado com sucesso para a aba 'Base Inbound'.")
     except Exception as e:
-        print(f"Erro durante o processo: {e}")
+        print(f"Erro durante a atualização do Sheets: {e}")
 
 # ==============================
 # Fluxo principal Playwright
@@ -55,8 +62,9 @@ def update_packing_google_sheets(csv_file_path):
 async def main():        
     os.makedirs(DOWNLOAD_DIR, exist_ok=True)
     async with async_playwright() as p:
+        # HEADLESS=TRUE para rodar no GitHub Actions
         browser = await p.chromium.launch(
-            headless=False, 
+            headless=True, 
             args=["--no-sandbox", "--disable-dev-shm-usage", "--window-size=1920,1080"]
         )
         context = await browser.new_context(accept_downloads=True)
@@ -96,7 +104,7 @@ async def main():
             await download.save_as(download_path)
             new_file_path = rename_downloaded_file(DOWNLOAD_DIR, download_path)
 
-            #####################################################################
+            # ####################################################################
 
             # Atualizar Google Sheets
             if new_file_path:
@@ -105,7 +113,7 @@ async def main():
             print("Dados atualizados com sucesso.")
 
         except Exception as e:
-            print(f"Erro durante o processo: {e}")
+            print(f"Erro durante o processo do Playwright: {e}")
         finally:
             await browser.close()
 
